@@ -70,6 +70,13 @@ geom_2d_test() ->
 	?assertEqual("0000000007000000020000000001405900000000000000000000000000000000000002000000024059400000000000000000000000000040598000000000003FF0000000000000", 
 		bin_to_hexstr(WKB8)).
 
+% extended wkb
+geom_3d_test() ->
+	Pt = "{\"type\":\"Point\", \"coordinates\": [100.0, 0.0, 1]}",
+	{ok, WKB1} = wkb_writer:geojson_to_wkb(Pt),
+	?assertEqual("0000000001405900000000000000000000000000003FF0000000000000",
+		 bin_to_hexstr(WKB1)).
+
 % priv
 bin_to_hexstr(Bin) ->
 	lists:flatten([io_lib:format("~2.16.0B", [X]) ||
