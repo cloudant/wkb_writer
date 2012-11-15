@@ -5,6 +5,8 @@
 
 -export([geojson_to_wkb/1]).
 
+geojson_to_wkb(Data) when is_tuple(Data)->
+	parse_geom(Data);
 
 geojson_to_wkb(Data) when is_list(Data) ->
 	geojson_to_wkb(list_to_binary(Data));
