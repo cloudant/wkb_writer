@@ -3,6 +3,7 @@
 {application, wkb_writer,
  [{description, ""},
   {vsn, "0.1"},
+  {registered, []},  
   {applications, [kernel,
                   stdlib,
                   sasl]}
