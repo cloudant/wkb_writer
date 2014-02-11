@@ -16,14 +16,16 @@
 -export([geojson_to_wkb/1]).
 
 geojson_to_wkb(Data) when is_tuple(Data)->
-	parse_geom(Data);
+	{ok, _Dims, Wkb} = parse_geom(Data),
+	{ok, Wkb};
 
 geojson_to_wkb(Data) when is_list(Data) ->
 	geojson_to_wkb(list_to_binary(Data));
 
 geojson_to_wkb(Json) ->    
 	JsonData = jiffy:decode(Json),
-	parse_geom(JsonData).
+	{ok, _Dims, Wkb} = parse_geom(JsonData),
+	{ok, Wkb}.
 
 % private api 
 %
@@ -47,58 +49,92 @@ parse_geom({JsonData}) ->
 	end.
 
 parse_geom(?POINT, Coords) ->
-	{ok, _Cnt, NewAcc} = make_pts([Coords], 0, <<>>),
-	{ok, <<0:8, ?wkbPoint:32, NewAcc/binary>>};
+	{ok, Dims, _Cnt, NewAcc} = make_pts([Coords], 0, <<>>),
+	Type = create_ewb_type(?wkbPoint, length(Coords)),
+	{ok, Dims, <<0:8, Type:32, NewAcc/binary>>};
 
 parse_geom(?LINESTRING, Coords) ->
-	{ok, Num, NewAcc} = make_pts(Coords, 0, <<>>),
-	{ok, <<0:8, ?wkbLineString:32, Num:32, NewAcc/binary>>};
+	{ok, Dims, Num, NewAcc} = make_pts(Coords, 0, <<>>),
+	Type = create_ewb_type(?wkbLineString, Dims),
+	{ok, Dims, <<0:8, Type:32, Num:32, NewAcc/binary>>};
 
 parse_geom(?POLYGON, Coords) ->
-	{ok, Num, NewAcc} = make_linear_ring(Coords, 0, <<>>),
-	{ok, <<0:8, ?wkbPolygon:32, Num:32, NewAcc/binary>>};
+	{ok, Dims, Num, NewAcc} = make_linear_ring(Coords, 0, <<>>),
+	Type = create_ewb_type(?wkbPolygon, Dims),
+	{ok, Dims, <<0:8, Type:32, Num:32, NewAcc/binary>>};
 
 parse_geom(?MULTIPOINT, Coords) ->
-	{ok, Num, NewAcc} = parse_nested_geoms(Coords, ?POINT, 0, <<>>),
-	{ok, <<0:8, ?wkbMultiPoint:32, Num:32, NewAcc/binary>>};
+	{ok, Dims, Num, NewAcc} = parse_nested_geoms(Coords, ?POINT, 0, <<>>),
+	Type = create_ewb_type(?wkbMultiPoint, Dims),
+	{ok, Dims, <<0:8, Type:32, Num:32, NewAcc/binary>>};
 
 parse_geom(?MULTILINESTRING, Coords) ->
-	{ok, Num, NewAcc} = parse_nested_geoms(Coords, ?LINESTRING, 0, <<>>),
-	{ok, <<0:8, ?wkbMultiLineString:32, Num:32, NewAcc/binary>>};
+	{ok, Dims, Num, NewAcc} = parse_nested_geoms(Coords, ?LINESTRING, 0, <<>>),
+	Type = create_ewb_type(?wkbMultiLineString, Dims),
+	{ok, Dims, <<0:8, Type:32, Num:32, NewAcc/binary>>};
 
 parse_geom(?MULTIPOLYGON, Coords) ->
-	{ok, Num, NewAcc} = parse_nested_geoms(Coords, ?POLYGON, 0, <<>>),
-	{ok, <<0:8, ?wkbMultiPolygon:32, Num:32, NewAcc/binary>>};
+	{ok, Dims, Num, NewAcc} = parse_nested_geoms(Coords, ?POLYGON, 0, <<>>),
+	Type = create_ewb_type(?wkbMultiPolygon, Dims),
+	{ok, Dims, <<0:8, Type:32, Num:32, NewAcc/binary>>};
 
 parse_geom(?GEOMETRYCOLLECTION, Geometries) ->
-	{Num, NewAcc} = lists:foldl(fun(C, {Cntr, Acc1}) ->
-			{ok, Acc2} = parse_geom(C),
-			{Cntr + 1, <<Acc1/binary, Acc2/binary>>}
-		end, {0, <<>>}, Geometries),
-	{ok, <<0:8, ?wkbGeometryCollection:32, Num:32, NewAcc/binary>>};
+	{Dims, Num, NewAcc} = lists:foldl(fun(C, {_, Cntr, Acc1}) ->
+			{ok, Dims, Acc2} = parse_geom(C),
+			{Dims, Cntr + 1, <<Acc1/binary, Acc2/binary>>}
+		end, {0, 0, <<>>}, Geometries),
+	Type = create_ewb_type(?wkbGeometryCollection, Dims),
+	{ok, Dims, <<0:8, Type:32, Num:32, NewAcc/binary>>};
 
 parse_geom(false, _Data) ->
 	throw({error, "error parsing geojson, geometry type not defined."}).
 
-parse_nested_geoms([], _Type, Cntr, Acc) ->
-	{ok, Cntr, Acc};
+parse_nested_geoms(GeomList, Type, Cntr, Acc) ->
+  parse_nested_geoms(GeomList, Type, 0, Cntr, Acc).
 
-parse_nested_geoms([Coord | Rem], Type, Cntr, Acc) ->
-	{ok, Acc1} = parse_geom(Type, Coord),
-	parse_nested_geoms(Rem, Type, Cntr + 1, <<Acc/binary, Acc1/binary>>).
+parse_nested_geoms([], _Type, Dims, Cntr, Acc) ->
+	{ok, Dims, Cntr, Acc};
 
-make_linear_ring([], Cntr, Acc) ->
-	{ok, Cntr, Acc};
+parse_nested_geoms([Coord | Rem], Type, _, Cntr, Acc) ->
+	{ok, Dims, Acc1} = parse_geom(Type, Coord),
+	parse_nested_geoms(Rem, Type, Dims, Cntr + 1, <<Acc/binary, Acc1/binary>>).
 
-make_linear_ring([Coords | Rem], Cntr, Acc) ->
-	{ok, Num, NewAcc} = make_pts(Coords, 0, <<>>),
-	make_linear_ring(Rem, Cntr + 1, <<Acc/binary, Num:32, NewAcc/binary>>).
+make_linear_ring(CoordList, Cntr, Acc) ->
+  make_linear_ring(CoordList, 0, Cntr, Acc).
 
-make_pts([], Cntr, Acc) ->
-	{ok, Cntr, Acc};
+make_linear_ring([], Dims, Cntr, Acc) ->
+	{ok, Dims, Cntr, Acc};
 
-make_pts([Coords | Rem], Cntr, Acc) ->
+make_linear_ring([Coords | Rem], _, Cntr, Acc) ->
+	{ok, Dims, Num, NewAcc} = make_pts(Coords, 0, <<>>),
+	make_linear_ring(Rem, Dims, Cntr + 1, <<Acc/binary, Num:32, NewAcc/binary>>).
+
+make_pts(CoordList, Cntr, Acc) ->
+	make_pts(CoordList, 0, Cntr, Acc).
+
+make_pts([], Dims, Cntr, Acc) ->
+	{ok, Dims, Cntr, Acc};
+
+make_pts([C|_] = CoordList, 0, Cntr, Acc) ->
+	make_pts(CoordList, length(C), Cntr, Acc);
+
+make_pts([Coords | Rem], Dims, Cntr, Acc) ->
 	NewAcc = lists:foldl(fun(P, Acc2) ->
 		<<Acc2/binary, P:64/float>>
 	end, Acc, Coords),
-	make_pts(Rem, Cntr + 1, NewAcc).
+	make_pts(Rem, Dims, Cntr + 1, NewAcc).
+
+create_ewb_type(Type, Dims) ->
+	case Dims of 
+		2 ->
+			Type;
+		3 ->
+		  Type bor ?wkbZ;
+		4 ->
+		  (Type bor ?wkbZ) bor ?wkbM;
+		_ ->
+			throw({error, "error setting WKB type"})
+	end.
+
+
+

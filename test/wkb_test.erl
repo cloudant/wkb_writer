@@ -78,9 +78,9 @@ geom_2d_test() ->
 
 % extended wkb
 geom_3d_test() ->
-	Pt = "{\"type\":\"Point\", \"coordinates\": [100.0, 0.0, 1]}",
+	Pt = "{\"type\":\"Point\", \"coordinates\": [100.0, 0.0, 1.0]}",
 	{ok, WKB1} = wkb_writer:geojson_to_wkb(Pt),
-	?assertEqual("0000000001405900000000000000000000000000003FF0000000000000",
+	?assertEqual("0080000001405900000000000000000000000000003FF0000000000000",
 		 bin_to_hexstr(WKB1)).
 
 % priv

@@ -25,19 +25,8 @@
 -define(wkbMultiPolygon, 6).
 -define(wkbGeometryCollection, 7).
 
-% postgis support ewkb and this module will as well, xyz, srid;geom
-% TODO pointm does not transfer to geojson but does to odata
-% POINT(0 0 0) -- XYZ
-% SRID=32632;POINT(0 0) -- XY with SRID
-% POINTM(0 0 0) -- XYM
-% POINT(0 0 0 0) -- XYZM
-% SRID=4326;MULTIPOINTM(0 0 0,1 2 1) -- XYM with SRID
-% MULTILINESTRING((0 0 0,1 1 0,1 2 1),(2 3 1,3 2 1,5 4 1))
-% POLYGON((0 0 0,4 0 0,4 4 0,0 4 0,0 0 0),(1 1 0,2 1 0,2 2 0,1 2 0,1 1 0))
-% MULTIPOLYGON(((0 0 0,4 0 0,4 4 0,0 4 0,0 0 0),
-%	(1 1 0,2 1 0,2 2 0,1 2 0,1 1 0)),((-1 -1 0,-1 -2 0,-2 -2 0,-2 -1 0,-1 -1 0)))
-% GEOMETRYCOLLECTIONM(POINTM(2 3 9), LINESTRINGM(2 3 4, 3 4 5))
-
+-define(wkbZ, 16#80000000).
+-define(wkbM, 16#40000000).
 
 % spec - http://edndoc.esri.com/arcsde/9.0/general_topics/wkb_representation.htm
 
