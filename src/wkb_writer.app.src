@@ -2,7 +2,7 @@
 %% ex: ts=4 sw=4 et
 {application, wkb_writer,
  [{description, ""},
-  {vsn, "0.1"},
+  {vsn, git},
   {registered, []},  
   {applications, [kernel,
                   stdlib,
