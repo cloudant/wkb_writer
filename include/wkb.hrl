@@ -28,6 +28,10 @@
 -define(wkbZ, 16#80000000).
 -define(wkbM, 16#40000000).
 
+-define(BIG_ENDIAN, 0).
+-define(LITTLE_ENDIAN, 1).
+
+
 % spec - http://edndoc.esri.com/arcsde/9.0/general_topics/wkb_representation.htm
 
 % // Basic Type definitions

@@ -1,4 +1,4 @@
-wkb_writer
-==========
+wkb
+===
 
-OGC Well Known Binary (WKB) writer in Erlang
+OGC Well Known Binary (WKB) writer and reader in Erlang
